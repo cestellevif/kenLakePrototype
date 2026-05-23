@@ -173,13 +173,27 @@ function injectSharedElements() {
 }
 
 // ─── Fix hrefs for subdirectory pages ────────────────────────
-// Converts absolute-style /path.html hrefs to relative paths based on page depth.
-// Works for both file:// and http:// protocols.
+// On HTTP/HTTPS (including GitHub Pages), detects the base path from the script's
+// own URL so links work regardless of repo name or subdirectory depth.
+// Falls back to relative-path calculation for file:// (local development).
 function fixHrefs() {
+  if (window.location.protocol !== 'file:') {
+    const script = document.querySelector('script[src*="main.js"]');
+    const basePath = script
+      ? new URL(script.src).pathname.replace(/\/js\/main\.js$/, '/')
+      : '/';
+    document.querySelectorAll('.site-header a[href^="/"], .site-footer a[href^="/"]').forEach(a => {
+      const href = a.getAttribute('href');
+      if (href && href !== '/') {
+        a.setAttribute('href', basePath + href.slice(1));
+      }
+    });
+    return;
+  }
+
+  // file:// fallback: compute relative paths from directory depth
   const pathname = window.location.pathname.replace(/\\/g, '/');
-  // Count directory segments (exclude the filename itself)
   const segments = pathname.split('/').filter(Boolean);
-  // On file:// the path starts with a drive letter segment on Windows; find .html depth
   const htmlIndex = segments.findIndex(s => s.endsWith('.html'));
   const depth = htmlIndex >= 0 ? segments.slice(0, htmlIndex).length : segments.length;
   if (depth <= 0) return;
@@ -245,7 +259,7 @@ function markActiveNav() {
   const path = window.location.pathname;
   document.querySelectorAll('.nav-links > li > a').forEach(a => {
     const href = a.getAttribute('href');
-    if (href && href !== '#' && href !== '/index.html') {
+    if (href && href !== '#' && !href.endsWith('/index.html')) {
       if (path.includes(href.replace(/^\//, '').split('#')[0])) {
         a.closest('li').classList.add('active');
       }
