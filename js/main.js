@@ -3,6 +3,13 @@
    Shared JavaScript
    ============================================================= */
 
+// Capture base path synchronously while document.currentScript is available.
+// On GitHub Pages this is e.g. /kenLakePrototype/; on localhost it is /.
+const _BASE = (function () {
+  const s = document.currentScript;
+  return s ? new URL(s.src).pathname.replace(/\/js\/main\.js$/, '/') : '/';
+}());
+
 // ─── Shared Nav HTML ──────────────────────────────────────────
 const NAV_HTML = `
 <header class="site-header">
@@ -173,19 +180,14 @@ function injectSharedElements() {
 }
 
 // ─── Fix hrefs for subdirectory pages ────────────────────────
-// On HTTP/HTTPS (including GitHub Pages), detects the base path from the script's
-// own URL so links work regardless of repo name or subdirectory depth.
-// Falls back to relative-path calculation for file:// (local development).
+// Rewrites absolute-style /path hrefs using _BASE so they work on GitHub Pages
+// (where the site lives under a repo-name prefix) and on file:// for local dev.
 function fixHrefs() {
   if (window.location.protocol !== 'file:') {
-    const script = document.querySelector('script[src*="main.js"]');
-    const basePath = script
-      ? new URL(script.src).pathname.replace(/\/js\/main\.js$/, '/')
-      : '/';
     document.querySelectorAll('.site-header a[href^="/"], .site-footer a[href^="/"]').forEach(a => {
       const href = a.getAttribute('href');
       if (href && href !== '/') {
-        a.setAttribute('href', basePath + href.slice(1));
+        a.setAttribute('href', _BASE + href.slice(1));
       }
     });
     return;
